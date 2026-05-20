@@ -73,7 +73,10 @@ ADDITIONAL_EXCLUDE = {
 
 # Build additional exclude filter
 exclude_tests = []
-if AMDGPU_FAMILIES in ADDITIONAL_EXCLUDE and os_type in ADDITIONAL_EXCLUDE[AMDGPU_FAMILIES]:
+if (
+    AMDGPU_FAMILIES in ADDITIONAL_EXCLUDE
+    and os_type in ADDITIONAL_EXCLUDE[AMDGPU_FAMILIES]
+):
     exclude_tests = ADDITIONAL_EXCLUDE[AMDGPU_FAMILIES][os_type]
 
 if exclude_tests:

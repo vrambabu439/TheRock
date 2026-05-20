@@ -147,6 +147,7 @@ artifact_groups = [
     "hip-runtime",
     "opencl-runtime",
     "profiler-core",
+    "rocrtst",
     "kfdtest",
     "rocjitsu"
 ]
@@ -260,6 +261,12 @@ source_sets = ["rocm-systems"]  # clr is in rocm-systems
 description = "Runtime tests (hip-tests, rocrtst)"
 type = "generic"
 artifact_group_deps = ["hip-runtime", "opencl-runtime", "core-runtime"]
+source_sets = ["rocm-systems"]
+
+[artifact_groups.kfdtest]
+description = "KFD kernel driver tests"
+type = "generic"
+artifact_group_deps = ["core-runtime"]
 source_sets = ["rocm-systems"]
 
 [artifact_groups.kfdtest]
