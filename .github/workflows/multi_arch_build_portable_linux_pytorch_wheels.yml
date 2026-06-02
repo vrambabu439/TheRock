@@ -62,6 +62,14 @@ on:
         description: "Compiler cache type ('none', 'sccache', or 'ccache')"
         type: string
         default: "sccache"
+      sccache_no_wrap:
+        description: "When 'true' (sccache only), pass --sccache-no-wrap (host C/C++ caching only, no ROCm clang wrapping)."
+        type: string
+        default: "false"
+      skip_release_upload:
+        description: "When 'true', skip the S3 release upload steps (experiment use)."
+        type: string
+        default: "false"
   workflow_dispatch:
     inputs:
       amdgpu_families:
@@ -107,6 +115,20 @@ on:
           - sccache
           - ccache
         default: sccache
+      sccache_no_wrap:
+        description: "Append --sccache-no-wrap (sccache only): host C/C++ caching, no ROCm clang wrapping"
+        type: choice
+        options:
+          - "false"
+          - "true"
+        default: "false"
+      skip_release_upload:
+        description: "Skip S3 release upload (experiment use)"
+        type: choice
+        options:
+          - "false"
+          - "true"
+        default: "false"
 
 run-name: Build Multi-Arch Linux PyTorch Wheels (${{ inputs.release_type }}, ${{ inputs.python_version }}, ${{ inputs.pytorch_git_ref }})
 
@@ -129,7 +151,7 @@ jobs:
       optional_build_prod_arguments: ""
       SCCACHE_BUCKET: "therock-pytorch-sccache-${{ inputs.release_type }}"
       SCCACHE_REGION: us-east-1
-      SCCACHE_S3_KEY_PREFIX: "linux/multiarch/v1/"
+      SCCACHE_S3_KEY_PREFIX: "linux/exp-multiarch/${{ github.run_id }}/"
       SCCACHE_S3_USE_SSL: "true"
       SCCACHE_S3_SERVER_SIDE_ENCRYPTION: "true"
       SCCACHE_IDLE_TIMEOUT: "600"
@@ -225,6 +247,9 @@ jobs:
           cache_flag=""
           if [ "${{ inputs.cache_type }}" = "sccache" ]; then
             cache_flag="--use-sccache"
+            if [ "${{ inputs.sccache_no_wrap }}" = "true" ]; then
+              cache_flag="${cache_flag} --sccache-no-wrap"
+            fi
           elif [ "${{ inputs.cache_type }}" = "ccache" ]; then
             cache_flag="--use-ccache"
           fi
@@ -256,6 +281,43 @@ jobs:
         run: |
           python external-builds/pytorch/sanity_check_wheel.py \
             ${{ env.PACKAGE_DIST_DIR }}/
+
+      # EXPERIMENT (#5471 investigation): does the fat torch wheel actually
+      # contain GPU device code (.hip_fatbin)? Runs before the kpack split,
+      # which is otherwise the only (fatal) device-code gate.
+      - name: Inspect device code (.hip_fatbin)
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          set -x
+          DIST="${{ env.PACKAGE_DIST_DIR }}"
+          ls -lh "${DIST}" || true
+          WHEEL=$(ls "${DIST}"/torch-*.whl 2>/dev/null | head -1)
+          echo "WHEEL=${WHEEL}"
+          if [ -z "${WHEEL}" ]; then
+            echo "DEVICE_CODE_RESULT: ABSENT (no torch wheel found)"
+            exit 0
+          fi
+          WORK=$(mktemp -d)
+          python -m zipfile -e "${WHEEL}" "${WORK}"
+          echo "=== .so files under torch/ ==="
+          find "${WORK}/torch" -name '*.so*' -printf '%s\t%p\n' | sort -rn
+          count=0
+          fat=0
+          for so in $(find "${WORK}/torch" -name '*.so*'); do
+            count=$((count + 1))
+            if readelf -S "${so}" 2>/dev/null | grep -q '\.hip_fatbin'; then
+              echo "FATBIN PRESENT: ${so#${WORK}/}"
+              fat=$((fat + 1))
+            fi
+          done
+          echo "DEVICE_CODE_RESULT: scanned ${count} .so files, ${fat} contain .hip_fatbin"
+          if [ "${fat}" -gt 0 ]; then
+            echo "DEVICE_CODE_RESULT: PRESENT"
+          else
+            echo "DEVICE_CODE_RESULT: ABSENT"
+          fi
+          rm -rf "${WORK}"
 
       # The kpack wheel splitter takes the fat torch wheel and produces a
       # smaller host wheel plus one device wheel per gfx target. Source-install
@@ -313,11 +375,13 @@ jobs:
           ls -lh "${{ env.PACKAGE_DIST_DIR }}/"
 
       - name: Configure AWS Credentials
+        if: ${{ inputs.skip_release_upload != 'true' }}
         uses: ./.github/actions/configure_aws_artifacts_credentials
         with:
           release_type: ${{ inputs.release_type }}
 
       - name: Upload PyTorch wheels to release bucket
+        if: ${{ inputs.skip_release_upload != 'true' }}
         run: |
           python build_tools/github_actions/publish_pytorch_to_release_bucket.py \
             --source-dir="${{ env.PACKAGE_DIST_DIR }}" \
