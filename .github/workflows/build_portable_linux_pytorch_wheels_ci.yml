@@ -259,30 +259,37 @@ jobs:
       - name: Inspect device code (.hip_fatbin)
         if: ${{ !cancelled() }}
         run: |
-          set +e
-          WHEEL=$(ls ${{ env.PACKAGE_DIST_DIR }}/torch-*.whl | head -1)
-          echo "Inspecting wheel: ${WHEEL}"
-          WORK="${RUNNER_TEMP:-/tmp}/whinspect"
-          rm -rf "${WORK}"; mkdir -p "${WORK}"
-          python -m zipfile -e "${WHEEL}" "${WORK}"
-          echo "=== .so files under torch/ ==="
-          find "${WORK}/torch" -name '*.so'
-          fatbin_count=0
-          so_count=0
-          while IFS= read -r so; do
-            so_count=$((so_count + 1))
-            if readelf -S "${so}" 2>/dev/null | grep -q '\.hip_fatbin'; then
-              echo "  FATBIN PRESENT: ${so#${WORK}/}"
-              fatbin_count=$((fatbin_count + 1))
-            fi
-          done < <(find "${WORK}/torch" -name '*.so')
-          echo "DEVICE_CODE_RESULT: scanned ${so_count} .so files, ${fatbin_count} contain .hip_fatbin"
-          if [ "${fatbin_count}" -gt 0 ]; then
-            echo "DEVICE_CODE_RESULT: PRESENT"
-          else
-            echo "DEVICE_CODE_RESULT: ABSENT"
-          fi
-          rm -rf "${WORK}"
+          python - <<'PY'
+          import glob, mmap, os, tempfile, zipfile
+          dist = os.environ["PACKAGE_DIST_DIR"]
+          wheels = sorted(glob.glob(os.path.join(dist, "torch-*.whl")))
+          print("Found torch wheels:", wheels)
+          if not wheels:
+              print("DEVICE_CODE_RESULT: ABSENT (no torch wheel found)")
+              raise SystemExit(0)
+          work = tempfile.mkdtemp()
+          with zipfile.ZipFile(wheels[0]) as z:
+              z.extractall(work)
+          sos = []
+          for root, _, files in os.walk(os.path.join(work, "torch")):
+              for f in files:
+                  if f.endswith(".so") or ".so." in f:
+                      sos.append(os.path.join(root, f))
+          fat = 0
+          for so in sorted(sos):
+              try:
+                  with open(so, "rb") as fh:
+                      mm = mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)
+                      hit = mm.find(b".hip_fatbin") != -1
+                      mm.close()
+              except (ValueError, OSError):
+                  hit = b".hip_fatbin" in open(so, "rb").read()
+              if hit:
+                  print("  FATBIN PRESENT:", os.path.relpath(so, work))
+                  fat += 1
+          print(f"DEVICE_CODE_RESULT: scanned {len(sos)} .so files, {fat} contain .hip_fatbin")
+          print("DEVICE_CODE_RESULT: PRESENT" if fat > 0 else "DEVICE_CODE_RESULT: ABSENT")
+          PY
 
       # The kpack wheel splitter takes the fat torch wheel and produces a
       # smaller host wheel plus one device wheel per gfx target. Source-install
