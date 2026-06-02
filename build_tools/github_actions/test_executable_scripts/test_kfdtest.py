@@ -3,10 +3,10 @@
 
 import logging
 import os
+import platform
 import shlex
 import subprocess
 from pathlib import Path
-import platform
 
 THEROCK_BIN_DIR = os.getenv("THEROCK_BIN_DIR")
 AMDGPU_FAMILIES = os.getenv("AMDGPU_FAMILIES")

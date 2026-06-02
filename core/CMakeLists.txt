@@ -656,7 +656,7 @@ if(THEROCK_BUILD_TESTING)
     # kfdtest statically links libhsakmt and LLVM (AMDGPUAsmParser, Core, Support).
     # It needs LLVM headers at build time and libhsakmt.a for linking.
     set(_kfdtest_build_deps
-      amd-llvm_dev
+      amd-llvm
       ROCR-Runtime
       therock-yaml-cpp
     )
