@@ -258,38 +258,45 @@ jobs:
       # the same check kpack's wheel_splitter.is_fat_binary() performs.
       - name: Inspect device code (.hip_fatbin)
         if: ${{ !cancelled() }}
+        shell: bash
         run: |
-          python - <<'PY'
-          import glob, mmap, os, tempfile, zipfile
-          dist = os.environ["PACKAGE_DIST_DIR"]
-          wheels = sorted(glob.glob(os.path.join(dist, "torch-*.whl")))
-          print("Found torch wheels:", wheels)
-          if not wheels:
-              print("DEVICE_CODE_RESULT: ABSENT (no torch wheel found)")
-              raise SystemExit(0)
-          work = tempfile.mkdtemp()
-          with zipfile.ZipFile(wheels[0]) as z:
-              z.extractall(work)
-          sos = []
-          for root, _, files in os.walk(os.path.join(work, "torch")):
-              for f in files:
-                  if f.endswith(".so") or ".so." in f:
-                      sos.append(os.path.join(root, f))
-          fat = 0
-          for so in sorted(sos):
-              try:
-                  with open(so, "rb") as fh:
-                      mm = mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)
-                      hit = mm.find(b".hip_fatbin") != -1
-                      mm.close()
-              except (ValueError, OSError):
-                  hit = b".hip_fatbin" in open(so, "rb").read()
-              if hit:
-                  print("  FATBIN PRESENT:", os.path.relpath(so, work))
-                  fat += 1
-          print(f"DEVICE_CODE_RESULT: scanned {len(sos)} .so files, {fat} contain .hip_fatbin")
-          print("DEVICE_CODE_RESULT: PRESENT" if fat > 0 else "DEVICE_CODE_RESULT: ABSENT")
-          PY
+          set -x
+          DIST="${{ env.PACKAGE_DIST_DIR }}"
+          echo "DIST=${DIST}"
+          ls -lh "${DIST}" || true
+          WHEEL=$(ls "${DIST}"/torch-*.whl 2>/dev/null | head -1)
+          echo "WHEEL=${WHEEL}"
+          if [ -z "${WHEEL}" ]; then
+            echo "DEVICE_CODE_RESULT: ABSENT (no torch wheel found)"
+            exit 0
+          fi
+          WORK=$(mktemp -d)
+          python -m zipfile -e "${WHEEL}" "${WORK}"
+          count=0
+          fat=0
+          for so in $(find "${WORK}/torch" -name '*.so*'); do
+            count=$((count + 1))
+            if readelf -S "${so}" 2>/dev/null | grep -q '\.hip_fatbin'; then
+              echo "FATBIN PRESENT: ${so#${WORK}/}"
+              fat=$((fat + 1))
+            fi
+          done
+          echo "DEVICE_CODE_RESULT: scanned ${count} .so files, ${fat} contain .hip_fatbin"
+          if [ "${fat}" -gt 0 ]; then
+            echo "DEVICE_CODE_RESULT: PRESENT"
+          else
+            echo "DEVICE_CODE_RESULT: ABSENT"
+          fi
+          rm -rf "${WORK}"
+
+      - name: Upload built torch wheel (experiment ground truth)
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8 # v5.0.0
+        with:
+          name: torch-wheel-${{ inputs.artifact_group }}
+          path: ${{ env.PACKAGE_DIST_DIR }}/torch-*.whl
+          if-no-files-found: warn
+          retention-days: 3
 
       # The kpack wheel splitter takes the fat torch wheel and produces a
       # smaller host wheel plus one device wheel per gfx target. Source-install
