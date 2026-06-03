@@ -697,7 +697,7 @@ def do_build(args: argparse.Namespace):
             )
 
         sccache_wrapped = False
-        if args.sccache_no_wrap:
+        if args.sccache_no_wrap or args.sccache_hip_launcher:
             print("Setting up sccache (CMAKE launchers only, no compiler wrapping)...")
         else:
             print("Setting up sccache with ROCm compiler wrapping...")
@@ -708,6 +708,15 @@ def do_build(args: argparse.Namespace):
         if args.use_sccache:
             env["CMAKE_C_COMPILER_LAUNCHER"] = str(sccache_path)
             env["CMAKE_CXX_COMPILER_LAUNCHER"] = str(sccache_path)
+            if args.sccache_hip_launcher:
+                # hipcc invokes clang via absolute paths, bypassing the CMAKE
+                # launchers above. HIP_CLANG_LAUNCHER makes hipcc itself run
+                # clang through sccache (incl. the -x hip --offload-arch device
+                # passes), without replacing the clang binary — so compiler
+                # detection probes still see the real clang. Requires hipcc
+                # with HIP_CLANG_LAUNCHER support (ROCm 7.13+).
+                env["HIP_CLANG_LAUNCHER"] = str(sccache_path)
+                print(f"Set HIP_CLANG_LAUNCHER={sccache_path}")
 
             try:
                 run_command(
@@ -1346,6 +1355,16 @@ def main(argv: list[str]):
         default=False,
         help="With --use-sccache: skip compiler wrapping, only set CMAKE launchers "
         "(caches host C/C++ but not HIP device code)",
+    )
+    build_p.add_argument(
+        "--sccache-hip-launcher",
+        action="store_true",
+        default=False,
+        help="With --use-sccache: set HIP_CLANG_LAUNCHER so hipcc routes its clang "
+        "invocations (including HIP device passes) through sccache, instead of "
+        "replacing the ROCm clang binaries. Leaves the real clang in place so "
+        "compiler-detection probes work. Implies no binary wrapping. Requires "
+        "hipcc with HIP_CLANG_LAUNCHER support (ROCm 7.13+).",
     )
     build_p.add_argument(
         "--pytorch-dir",

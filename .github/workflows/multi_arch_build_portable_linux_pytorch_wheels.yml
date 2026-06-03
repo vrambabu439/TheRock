@@ -66,6 +66,10 @@ on:
         description: "When 'true' (sccache only), pass --sccache-no-wrap (host C/C++ caching only, no ROCm clang wrapping)."
         type: string
         default: "false"
+      sccache_hip_launcher:
+        description: "When 'true' (sccache only), pass --sccache-hip-launcher (HIP_CLANG_LAUNCHER routes hipcc clang through sccache; caches device code, no binary wrapping)."
+        type: string
+        default: "false"
       skip_release_upload:
         description: "When 'true', skip the S3 release upload steps (experiment use)."
         type: string
@@ -122,6 +126,13 @@ on:
           - "false"
           - "true"
         default: "false"
+      sccache_hip_launcher:
+        description: "Append --sccache-hip-launcher (sccache only): HIP_CLANG_LAUNCHER routes hipcc clang through sccache (caches device code)"
+        type: choice
+        options:
+          - "false"
+          - "true"
+        default: "false"
       skip_release_upload:
         description: "Skip S3 release upload (experiment use)"
         type: choice
@@ -151,7 +162,7 @@ jobs:
       optional_build_prod_arguments: ""
       SCCACHE_BUCKET: "therock-pytorch-sccache-${{ inputs.release_type }}"
       SCCACHE_REGION: us-east-1
-      SCCACHE_S3_KEY_PREFIX: "linux/exp-multiarch/${{ github.run_id }}/"
+      SCCACHE_S3_KEY_PREFIX: ${{ inputs.sccache_hip_launcher == 'true' && 'linux/exp-hiplauncher/v1/' || format('linux/exp-multiarch/{0}/', github.run_id) }}
       SCCACHE_S3_USE_SSL: "true"
       SCCACHE_S3_SERVER_SIDE_ENCRYPTION: "true"
       SCCACHE_IDLE_TIMEOUT: "600"
@@ -249,6 +260,9 @@ jobs:
             cache_flag="--use-sccache"
             if [ "${{ inputs.sccache_no_wrap }}" = "true" ]; then
               cache_flag="${cache_flag} --sccache-no-wrap"
+            fi
+            if [ "${{ inputs.sccache_hip_launcher }}" = "true" ]; then
+              cache_flag="${cache_flag} --sccache-hip-launcher"
             fi
           elif [ "${{ inputs.cache_type }}" = "ccache" ]; then
             cache_flag="--use-ccache"
