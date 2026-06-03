@@ -100,10 +100,8 @@ skip_tests = {
             "test_load_standalone",
         ],
         "distributed": [
-            # DistMathOpsTest - torch.linalg.eig requires MAGMA in this build
+            # DistMathOpsTest - torch.linalg.eig requires MAGMA in this build.
             "test_linalg_ops",
-            # ProcessGroupNCCLGroupTest - extra CUDA context memory growth
-            "test_extra_cuda_context",
 
             # ROCm bump attribution anchors:
             # - Apr20/PT + Apr20/ROCm control was green across distributed
@@ -116,272 +114,46 @@ skip_tests = {
             #   run 26136844778; jobs 76873873289 (1/3),
             #   76873873320 (2/3), 76873873274 (3/3).
 
-            # Run 25925372276 shards 1/3, 2/3, and 3/3:
-            # https://github.com/ROCm/TheRock/actions/runs/25925372276/job/76205215134
-            # https://github.com/ROCm/TheRock/actions/runs/25925372276/job/76205215167
-            # https://github.com/ROCm/TheRock/actions/runs/25925372276/job/76205215147
-            # Composable FSDP 300s timeout/hang bucket, also seen in the
-            # May01/PT + May01/ROCm target stack; ROCm-bump overlap.
-            "(TestFullyShardAutograd and test_nontensor_activations)",
-            "(TestFullyShard1DTrainingCore)",
-            "(TestFullyShardAllGatherExtensionsMultiProcess and test_all_gather_extensions_train_parity)",
-            "(TestFullyShardGradientScaler and test_gradient_scaler)",
-            "(TestFullyShardIgnoreParams and test_ddp_A_fsdp_B_ddp_C)",
-            "(TestFullyShardMixedPrecisionTraining and test_compute_dtype)",
-            "(TestFullyShard1DTrainingCore and test_explicit_prefetching)",
-            "(TestClipGradNormWorldSize2 and test_clip_grad_norm_1d)",
-            "(TestFullyShardFrozen and test_multi_forward_mixed_requires_grad)",
-            "(TestFullyShardMemory and test_fully_shard_training_memory)",
-            "(TestFullyShardOverlap and test_fully_shard_training_overlap)",
-            "(TestFullyShardCommunication and test_set_reduce_scatter_divide_factor)",
-            "(TestFullyShard2DTraining and test_train_parity_2d_mlp)",
-
             # Run 25925372276 shard 3/3, job 76205215147:
             # https://github.com/ROCm/TheRock/actions/runs/25925372276/job/76205215147
-            # Mixed-precision cast crash bucket; replicate bf16 cast hit SIGSEGV.
-            # The FSDP cast class is grouped here with the same cast surface.
+            # Mixed-precision cast crash bucket. Jun1 CI still hit bf16 SIGSEGVs.
             "(TestFullyShardMixedPrecisionCasts)",
             "(TestReplicateMixedPrecisionCasts and test_norm_modules_bf16)",
 
-            # Run 25925372276 shards 2/3 and 3/3:
-            # https://github.com/ROCm/TheRock/actions/runs/25925372276/job/76205215167
-            # https://github.com/ROCm/TheRock/actions/runs/25925372276/job/76205215147
-            # DTensor/debug correctness drift on ROCm May01; not FSDP watchdogs.
-            "(TestCommModeFeatures and test_MLPStacked_distributed_sharding_display)",
-            "(DistElementwiseOpsTest and test_dropout_partial_redistributes)",
-            "(DistTensorRandomInitTest and test_multinomial_sharded)",
-            "(TestViewOpsWithLocalTensor and test_squeeze_variants)",
-            "(TestDTensorCompileE2E and test_2d_fsdp_tp_compile_use_ca_False)",
-
-            # Run 25925372276 shards 1/3 and 3/3:
-            # https://github.com/ROCm/TheRock/actions/runs/25925372276/job/76205215134
-            # https://github.com/ROCm/TheRock/actions/runs/25925372276/job/76205215147
-            # Distributed process-group/control-flow failures.
-            "(TestJoin and test_multiple_joinables)",
-            "(TestDistBackendWithSpawn and test_ddp_uneven_inputs)",
-            "(TestDistBackendWithSpawn and test_ddp_uneven_inputs_stop_iteration_sync_bn)",
-
-            # Run 25925372276 shard 1/3, job 76205215134:
-            # https://github.com/ROCm/TheRock/actions/runs/25925372276/job/76205215134
-            # Classic FSDP wrap/API failures; keep separate from composable FSDP.
-            "(TestFSDPWrap)",
-            "(TestFSDPWrap and test_main_wrap_api_cpu_offload0_backward_prefetch0_forward_prefetch_False_device_init_mode0)",
+            # Originally added as part of the May01 mixed-precision attribution
+            # layer. Not covered by the Jun1 validation runs; siblings in
+            # TestFullyShardMixedPrecisionCasts above still SIGSEGV on bf16, so
+            # keep these training-variant skips until a targeted validation run
+            # against distributed/_composable/fsdp/test_fully_shard_training
+            # proves them passing on Jun1/Jun1.
+            "(TestFullyShardMixedPrecisionTraining and test_compute_dtype)",
+            "(TestFullyShardMixedPrecisionTraining and test_grad_acc_with_reduce_dtype)",
+            "(TestFullyShardMixedPrecisionTraining and test_reduce_dtype)",
+            "(TestFullyShardMixedPrecisionTraining and test_structured_input_output)",
 
             # Run 25925372276 shard 2/3, job 76205215167:
             # https://github.com/ROCm/TheRock/actions/runs/25925372276/job/76205215167
-            # Attribution-only rerun unblockers; do not count as May01/PT
-            # target-stack overlap unless a later run exposes the same test.
-            "(TestReplicate1DTrainingCore and test_train_parity_multi_groups)",
-            "(CPFlexAttentionTest and test_cp_flex_attention_causal_mask)",
-
-            # Run 25925372276 shard 2/3, job 76205215167:
-            # https://github.com/ROCm/TheRock/actions/runs/25925372276/job/76205215167
-            # Attribution-only DTensor/runtime checks.
+            # Attribution-only DTensor/runtime checks not covered by the Jun1 run set.
             "(DistElementwiseOpsTest and test_dropout_errors)",
-            "(DistTensorRandomInitTest and test_meta_tensor_init)",
-
-            # Run 25925372276 shards 2/3 and 3/3:
-            # https://github.com/ROCm/TheRock/actions/runs/25925372276/job/76205215167
-            # https://github.com/ROCm/TheRock/actions/runs/25925372276/job/76205215147
-            # Attribution-only compute/comm reordering checks.
-            "(TestComputeCommReorderingBucketing and test_bucketing_split_for_overlap)",
-            "(TestComputeCommReorderingBucketing and test_no_bucketing_with_dependent_hiding_nodes)",
-
-            # Run 26136844778 shard 1/3, job 76873873289:
-            # https://github.com/ROCm/TheRock/actions/runs/26136844778/job/76873873289
-            # Second attribution layer; 300s composable FSDP timeout bucket.
-            "(TestFullyShardPostAccGradHookMultiProcess and test_post_acc_grad_hook_optim_parity)",
-            "(TestFullyShardFrozen and test_train_mixed_requires_grad_across_groups)",
-
-            # Run 26136844778 shard 1/3, job 76873873289: NCCL watchdog timeout
-            # in 2D transformer train parity. Keep apart from generic 300s timeouts.
-            "(TestFullyShard2DTraining and test_train_parity_2d_transformer)",
-
-            # Run 26136844778 shard 2/3, job 76873873320:
-            # https://github.com/ROCm/TheRock/actions/runs/26136844778/job/76873873320
-            # Second attribution layer; 300s timeout bucket across FSDP/DTensor.
-            "(TestClipGradNormWorldSize4 and test_clip_grad_norm_2d)",
-            "(TestFullyShardPerParamMeshOverlap and test_fully_shard_per_param_mesh_training_overlap)",
-            "(TestCommModeFeatures and test_transformer_module_tracing)",
-            "(TestDTensorCompileE2E and test_2d_fsdp_tp_compile_use_ca_True)",
 
             # Run 26136844778 shard 2/3, job 76873873320: elastic launcher
             # ChildFailedError/SIGABRT bucket.
             "(ElasticLaunchTest and test_virtual_local_rank)",
 
-            # Run 26136844778 shard 3/3, job 76873873274:
-            # https://github.com/ROCm/TheRock/actions/runs/26136844778/job/76873873274
-            # Second attribution layer; 300s composable FSDP timeout bucket.
-            "(TestFullyShardMixedPrecisionTraining and test_grad_acc_with_reduce_dtype)",
-            "(TestFullyShard1DTrainingCompose and test_double_forward_with_nested_fsdp_and_checkpoint)",
-
-            # Run 26136844778 shard 3/3, job 76873873274: Join scalar assertion
-            # via process exit, not an FSDP timeout.
-            "(TestJoin and test_single_joinable)",
-
-            # Run 26136844778 shard 3/3, job 76873873274: DataParallel SIGSEGV
-            # in autograd backward.
-            "(TestDataParallel and test_strided_grad_layout)",
-
-            # Run 26198202280 shard 3/3, job 77082259137:
-            # https://github.com/ROCm/TheRock/actions/runs/26198202280/job/77082259137
-            # Apr20/PT + May01/ROCm attribution layer hit a 300s timeout in
-            # test_layer_by_layer_shard_no_false_positive. The May01/PT +
-            # May01/ROCm target stack already skips TestFullyShardSharedParams
-            # at class scope after multiple same-class 300s hangs, so keep the
-            # attribution layer class-scoped to avoid exposing downstream timeouts.
-            "(TestFullyShardSharedParams)",
-
-            # Run 26242043110 shard 2/3, job 77230805439:
-            # https://github.com/ROCm/TheRock/actions/runs/26242043110/job/77230805439
-            # Apr20/PT + May01/ROCm attribution layer hit a 300s timeout in
-            # test_gradient_accumulation. The May01/PT + May01/ROCm target
-            # stack already skips TestFullyShardGradientAccumulation at class
-            # scope, so keep this attribution layer class-scoped to avoid
-            # exposing downstream same-class timeouts.
-            "(TestFullyShardGradientAccumulation)",
-
-            # CI run 26296106703 distributed shard 1/3:
-            # next failures exposed after prior May01 distributed skip layers
-            # on the rocm7.13.0a20260501 wheel.
-            "(test_replicate_with_compiler and test_compile_bf16)",
-            "(TestZeroRedundancyOptimizerDistributed and test_ddp_zero_overlap_use_gpu_True_use_interleaved_hook_False_gradient_as_bucket_view_False_static_graph_True_shard_buckets_True)",
-            "(CPFlexAttentionTest and test_cp_flex_attention_document_mask)",
-            "(TestDistBackendWithSpawn and test_ddp_apply_optim_in_backward)",
-
-            # CI run 26296106703 distributed shard 2/3:
-            # FSDP ND training timed out at 300s; class-level skip avoids
-            # immediately exposing the adjacent ND training cases.
-            "(TestFullyShardNDTraining)",
-            # Run 26309934790 shard 2/3, job 77455930870:
-            # https://github.com/ROCm/TheRock/actions/runs/26309934790/job/77455930870
-            # Apr20/PT + May01/ROCm attribution: test_train_parity_hsdp hit a 300s
-            # timeout in backward/FSDP finalize. Target branch already skips
-            # TestFullyShardHSDPTraining at class scope.
-            "(TestFullyShardHSDPTraining)",
-
-
-            # Run 26170912739 shard 1/3, job 76988162868:
-            # https://github.com/ROCm/TheRock/actions/runs/26170912739/job/76988162868
-            # Newly exposed May01/PT + May01/ROCm target-stack timeouts in
-            # prior-attributed FSDP/Join buckets. Use test-level skips because
-            # pytest -k can avoid them and sibling methods are tracked separately.
-            "(TestFullyShardFrozen and test_train_mixed_requires_grad_per_group)",
-            "(TestJoin and test_join_kwargs)",
+            # CI run 26296106703 distributed shard 1/3, confirmed still failing in
+            # Jun1 CI run 26858601551.
+            "(ReplicateTest and test_compile_bf16)",
 
             # Run 26170912739 shard 2/3, job 76988162878:
             # https://github.com/ROCm/TheRock/actions/runs/26170912739/job/76988162878
-            # SIGSEGV/native crash bucket in Replicate mixed-precision casts;
-            # bf16 sibling overlapped Apr20/PT + May01/ROCm in run 25925372276,
-            # while this target-stack layer exposes fp16. Keep this test-level:
-            # neighboring cast methods passed before the crash and pytest -k can
-            # prevent entering the crashy method.
+            # fp16 was not definitively revalidated because the bf16 sibling still
+            # SIGSEGVs before the module can complete.
             "(TestReplicateMixedPrecisionCasts and test_norm_modules_fp16)",
 
-            # Run 26170912739 shard 2/3, job 76988162878:
-            # https://github.com/ROCm/TheRock/actions/runs/26170912739/job/76988162878
-            # Newly exposed target-stack process-exit assertion in Dynamo
-            # distributed collectives. Test-level skip is sufficient; the module
-            # collected and earlier TestMultiProc sibling passed before failure.
-            "(TestMultiProc and test_compiler_collectives_automatic_dynamic_tensor)",
-
-            # Run 26170912739 shard 3/3, job 76988162973:
-            # https://github.com/ROCm/TheRock/actions/runs/26170912739/job/76988162973
-            # Newly exposed target-stack 300s composable FSDP timeouts in classes
-            # with prior attribution-layer timeout siblings. Keep test-level skips
-            # instead of class-level because the class-wide failures are not yet
-            # proven and pytest -k can isolate these methods.
-            "(TestFullyShardMixedPrecisionTraining and test_reduce_dtype)",
-            "(TestFullyShard1DTrainingCompose and test_train_parity_with_activation_checkpointing)",
-
-            # Run 26185604461 shard 3/3, job 77040210625:
-            # https://github.com/ROCm/TheRock/actions/runs/26185604461/job/77040210625
-            # Mixed-precision structured input/output scalar drift; rank 0 exits
-            # with error code 10 after assertion, not a native crash. Test-level
-            # skip is enough because pytest -k can isolate the method and sibling
-            # mixed-precision failures are tracked separately.
-            "(TestFullyShardMixedPrecisionTraining and test_structured_input_output)",
-
-            # Run 26185604461 shard 3/3, job 77040210625:
-            # https://github.com/ROCm/TheRock/actions/runs/26185604461/job/77040210625
-            # 300s composable FSDP shard-placement training timeout. Class-level
-            # skip is equivalent here because this class currently contains only
-            # this method; no same-class siblings passed in this shard.
-            "(TestFullyShardShardPlacementFnMultiProcess)",
-
-            # Run 26170912739 shard 3/3, job 76988162973:
-            # https://github.com/ROCm/TheRock/actions/runs/26170912739/job/76988162973
-            # SIGABRT/native watchdog crash in DDP buffer hook; exact overlap with
-            # Apr20/PT + May01/ROCm run 25925372276 shard 2/3. Test-level skip is
-            # enough because pytest -k can prevent the crashing method without a
-            # broad distributed_spawn module exclude.
-            "(TestDistBackendWithSpawn and test_ddp_buffer_hook_allreduce_return_future)",
-
-            # Run 26532128555 shard 1/3, job 78151483607:
-            # https://github.com/ROCm/TheRock/actions/runs/26532128555/job/78151483607
-            # May01 source + ROCm 7.13 rc2 wheel: fully-shard overlap timing
-            # threshold drift. Test-level skip is sufficient because this was the
-            # only failure in the isolated overlap shard.
-            "(TestFullyShardOverlap and test_fully_shard_post_optim_event_overlap)",
-
-            # Run 26532128555 shard 2/3, job 78151483533:
-            # https://github.com/ROCm/TheRock/actions/runs/26532128555/job/78151483533
-            # DTensor scaled-mm sharding propagation rejects the ROCm fp8 scale
-            # layout. Test-level skip is the narrowest proven scope; later same-file
-            # failures may still be exposed in follow-up runs.
-            "(DistMatrixOpsTest and test_scaled_mm)",
-
-            # Run 26532128555 shard 3/3, job 78151483538:
-            # https://github.com/ROCm/TheRock/actions/runs/26532128555/job/78151483538
-            # DTensor export expect-test drift in the generated graph signature.
-            # Test-level skip is sufficient because the surrounding compile tests ran.
-            "(TestDTensorCompile and test_dtensor_basic_export)",
-
-            # Run 26532128555 shard 3/3, job 78151483538:
-            # https://github.com/ROCm/TheRock/actions/runs/26532128555/job/78151483538
-            # ReplicateFullyShardInit failed on its first method and the distributed
-            # class wrapper skipped the rest of the class. Class-level skip avoids
-            # immediately exposing same-class downstream failures one method at a time.
-            "(ReplicateFullyShardInit)",
-
-            # Run 26532128555 shard 3/3, job 78151483538:
-            # https://github.com/ROCm/TheRock/actions/runs/26532128555/job/78151483538
-            # DDP parity and execution-trace checks fail under nccl/init=env with
-            # tensor mismatch and process-group-size drift. Keep method-level skips
-            # because many TestDistBackendWithSpawn siblings passed in the same run.
-            "(TestDistBackendWithSpawn and test_DistributedDataParallel)",
-            "(TestDistBackendWithSpawn and test_ddp_profiling_execution_trace)",
-
-            # Run 26611796814 shard 3/3, job 78419139757:
-            # https://github.com/ROCm/TheRock/actions/runs/26611796814/job/78419139757
-            # May12/PT + ROCm 7.13.0rc2: newly exposed distributed failures.
-            # Keep test-level skips where pytest -k can isolate the failing method.
-            "(MicroPipelineTPTest and test_fuse_all_gather_matmul_A_dims_3_gather_dim_1_return_A_False)",
-            "(TestOpSpecMesh and test_op_strategy_str_handles_all_specs_none)",
-            "(TestNodeGroupNameResolution and test_ag_group_key_with_node_group_name)",
-            "(SymmetricMemoryTest and test_pg_rendezvous_abort_after)",
-
-            # CI run 26794193808 distributed shards 2/3 and 3/3:
-            # Jun1/PT + ROCm 7.14 nightly is missing Kineto/NCCL
-            # annotation metadata on GPU kernels for both exporter paths.
+            # CI run 26794193808 distributed shards 2/3 and 3/3; confirmed still
+            # failing in Jun1 CI run 26858374424.
             "(CommTest and test_profiler_nccl_annotations_on_gpu_kernels_use_python_export_True)",
             "(CommTest and test_profiler_nccl_annotations_on_gpu_kernels_use_python_export_False)",
-
-            # CI run 26828748341 distributed shards 1/3 and 2/3:
-            # temporary Jun1/PT + Jun1/ROCm layer to get CI green before
-            # follow-up root-cause triage.
-            "(StageBackwardTestsCUDA and test_stage_backward_weight_shared_weights_cuda)",
-            "(TestDTensorPPUnitTests and test_split_target_preserves_dtensor_placements)",
-            "(ScheduleTest and test_adjacency_guard_rejects_nonadjacent_recv)",
-            "(TestReductionStrategy and test_common_reduction_strategy_uses_per_strategy_linearity)",
-            "(RedistributeTest and test_shard_to_replicate_local_tensor_contiguous)",
-            "(ProcessGroupGlooTest and test_allreduce_op_timeout)",
-            "(TestFullyShardDTensor and test_reduce_scatter_unused_dtensor_param)",
-            "(UnflattenPlaceholderOrderingTests and test_get_attr_before_all_placeholders)",
-            "(DistTensorParallelExampleTest and test_loss_parallel_3d_input_non_batch_shard)",
-            "(DistMathOpsTest and test_interpolation_upsample_ops)",
-            "(ProcessGroupGlooFRTest and test_allreduce_op_timeout)",
-            "(ProcessGroupGlooLazyInitTest and test_allreduce_op_timeout)",
         ],
     },
 }
