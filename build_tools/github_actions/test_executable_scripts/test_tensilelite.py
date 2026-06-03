@@ -12,7 +12,10 @@ Runs against installed artifacts from the hipBLASLt test component:
 
 Test order (fail fast):
 - rocisa (build dependency of TensileLite)
-- TensileLite
+- TensileLite unit tests
+- TensileLite common GEMM tests (gfx1250 in AMDGPU_FAMILIES)
+
+CI: TheRock ci.yml (unit tests, gfx950-dcgpu), GPU emulation (gfx1250 common GEMM)
 
 Usage: python test_tensilelite.py
 """
@@ -118,3 +121,29 @@ subprocess.check_call(
     cwd=str(THEROCK_DIR),
     env=env,
 )
+
+# TensileLite common (GEMM) tests — gfx1250 only, requires GPU or emulator.
+# Scope to Tensile/Tests/common (not Tensile/Tests) to avoid rocisa singleton
+# poisoning: unit test modules call validateToolchain()/makeIsaInfoMap() at
+# import time, caching all-false ISA caps that break subsequent common tests.
+common_tests = tensilelite_root / "Tensile" / "Tests" / "common"
+client_path = rocm_path / "libexec" / "hipblaslt" / "tensilelite" / "tensilelite-client"
+amdgpu_family = os.getenv("AMDGPU_FAMILIES", "")
+
+if common_tests.is_dir() and "gfx1250" in amdgpu_family:
+    logging.info("=== Running TensileLite common gfx1250 tests ===")
+    cxx = rocm_path / "bin" / "amdclang++"
+    common_cmd = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "-v",
+        str(common_tests),
+        "-m",
+        "gfx1250",
+    ]
+    if client_path.is_file():
+        common_cmd += [f"--prebuilt-client={client_path}"]
+    if cxx.is_file():
+        common_cmd += [f"--tensile-options=--cxx-compiler,{cxx},--gpu-targets,gfx1250"]
+    subprocess.check_call(common_cmd, cwd=str(THEROCK_DIR), env=env)
