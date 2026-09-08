@@ -52,4 +52,10 @@ RUN python3 -m venv /opt/venv \
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH=/opt/venv/bin:$PATH
 
+# Also expose the venv to interactive login shells that may not inherit the
+# image ENV (Cloud Agent terminals), so `python`/`pip` resolve without manual
+# activation.
+RUN printf 'export VIRTUAL_ENV=/opt/venv\nexport PATH=/opt/venv/bin:$PATH\n' \
+        > /etc/profile.d/therock-venv.sh
+
 USER ubuntu
